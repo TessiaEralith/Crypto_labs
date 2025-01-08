@@ -1,11 +1,151 @@
 import string
 
-from Crypto.Util.number import long_to_bytes, bytes_to_long, getPrime
+from Crypto.Util.number import sieve_base, bytes_to_long as b2l, long_to_bytes as l2b 
 from sympy.ntheory import factorint
+import numpy as np
 import math
 import random
 import time
 import timeit
+import json
+import mimetypes
+import uuid
+
+class Field:
+    
+    def gen_coeff(self, num):
+        coeff = []
+        while num!=0:
+            coeff.append(num % self.characteristic)
+            num//= self.characteristic
+        return coeff[::-1]
+
+
+    def gen_field(self):
+        field = []
+        for i in range(self.characteristic**self.n):
+            coeff = self.gen_coeff(i)
+            poly = np.poly1d(coeff)
+            field.append(poly)
+        return field
+    
+    
+    def gen_poly(self):
+        k = []
+        for _ in range(self.n):
+            k.append(random.randint(0, self.characteristic-1))
+        k.append(random.randint(1, self.characteristic-1))
+        x = np.poly1d(k[::-1])
+        return x
+    
+    
+    def gen_prime_poly(self):
+        while 1:
+            probably_prime_poly = self.gen_poly()
+            size = pow(self.characteristic, self.n)
+            result_field = []
+            right_field = self.gen_field()
+            for i in range(1, size):
+                res = [np.poly1d([0])]
+                for j in range(1, size):
+                    _, mul = np.polydiv(np.polymul(right_field[i], right_field[j]), probably_prime_poly)
+                    m = mul.coeffs
+                    for l in range(len(m)):
+                        m[l] %= self.characteristic
+                    mul = np.poly1d(m)
+                    if mul not in res and mul != np.poly1d([0]):
+                        res.append(mul)
+                    else: 
+                        break
+                if len(res) != len(right_field):
+                    break
+                else: result_field.append(res)
+            else:
+                return probably_prime_poly
+            
+                      
+
+
+    def __init__(self, value, characteristic, n = 1):
+        self.characteristic = characteristic
+        self.n = n
+        self.value = value
+        
+        self.prime_poly = self.gen_prime_poly()
+    
+
+    def __add__(self, other):
+        if isinstance(other, Field) and self.characteristic == other.characteristic:
+            su = np.polyadd(self.value, other.value)
+            coeff = su.coeffs
+            res = []
+            for i in coeff:
+                res.append(i % self.characteristic)
+            polynome = np.poly1d(res)
+            return Field(polynome, self.characteristic, polynome.o)
+        return NotImplemented
+
+    def __mul__(self, other):
+        if self.n >= other.n:
+            n = self.n
+            prime_poly = self.prime_poly
+        else:
+            n = other.n
+            prime_poly = other.prime_poly
+        if isinstance(other, Field) and self.characteristic == other.characteristic:
+            _, mul = np.polydiv(np.polymul(self.value, other.value), prime_poly)
+            m = mul.coeffs
+            for l in range(len(m)):
+                m[l] %= self.characteristic
+            mul = np.poly1d(m)
+            return Field(mul, self.characteristic, n)
+        return NotImplemented
+
+def gcd_extendedv2(num1, num2):
+    a2, a1, b2, b1 = 1, 0, 0, 1
+    while num2 != 0:
+        q = num1 // num2
+        r, a, b = num1 - q*num2, a2 - q*a1, b2 - q*b1
+        num1, num2, a2, a1, b2, b1 = num2, r, a1, a, b1, b
+    return num1, a2, b2
+
+
+def solve_m1(a, b, m):
+    d, u, _ = gcd_extendedv2(a, m)
+    if b % d != 0:
+        return "Error! b not divisible by d"
+    m1, a, b = m // d, a //  d, b // d
+    x = []
+    for i in range(d):
+        res =(u * b + m1 * i)%m
+        x.append(res)
+        print(f"x ≡ {res} (mod {m})")
+    x.sort()
+    return x
+print(solve_m1(-5, 6, 107))
+# print(solve_m1(1148, 2219, 2709))
+
+def powv2(n, e):
+    x = 1
+    while e:
+        if e & 1:
+            x *= n
+        n *= n
+        e >>= 1
+    return x
+
+def powm(n, e, m):
+    x = 1
+    if e == -1:
+        x = solve_m1(n, 1, m)
+        return x[0]
+    while e:
+        if e & 1:
+            x = (x * n) % m
+        n = (n * n) % m
+        e >>= 1
+    return x
+
 def miller_rabin(n, k):
 
     if n == 2 or n == 3:
@@ -13,24 +153,27 @@ def miller_rabin(n, k):
 
     if n % 2 == 0:
         return False
-
+    if n == 1:
+        return True
     r, s = 0, n - 1
     while s % 2 == 0:
         r += 1
         s //= 2
     for _ in range(k):
         a = random.randrange(2, n - 1)
-        x = pow(a, s, n)
+        x = powm(a, s, n)
         if x == 1 or x == n - 1:
             continue
         for _ in range(r - 1):
-            x = pow(x, 2, n)
+            x = powm(x, 2, n)
             if x == n - 1:
                 break
         else:
             return False
     return True
 
+
+    
 
 def continued_fraction(p, q):
     res = []
@@ -90,6 +233,17 @@ def yakobi(a, n):
         # print(f'k = {k}\ns = {s}\na = {a}\nn = {n}\ng = {g}\n')
 
 
+def solovey_shtrassen(n, k):
+    for _ in range(k):
+        a = random.randrange(2, n-2)
+        r = powm(a, (n-1)//2, n)
+        if r != 1 and r != n - 1:
+            return False
+        s = yakobi(a, n) % n
+        if s != r:
+            return False
+    return True
+
 def find_khN(p):
     N = 1
     while yakobi(N, p) != -1:
@@ -117,21 +271,65 @@ def solve_p2(a, p):
         print("not root")
         return None
     k, h, N = find_khN(p)
-    a1 = pow(a, (h + 1) // 2, p)
-    a2 = pow(a, -1, p)
-    N1 = pow(N, h, p)
+    a1 = powm(a, (h + 1) // 2, p)
+    a2 = powm(a, -1, p)
+    N1 = powm(N, h, p)
     N2 = 1
     j = 0
     for i in range(k - 1):
         b = a1 * N2 % p
-        c = a2 * pow(b, 2, p) % p
-        d = pow(c, pow(2, k - 2 - i), p)
+        c = a2 * powm(b, 2, p) % p
+        d = powm(c, powv2(2, k - 2 - i), p)
         if d == 1:
             j = 0
         elif d == p - 1:
             j = 1
-        N2 = N2 * pow(N1, 2 ** i * j) % p
+        N2 = N2 * powv2(N1, powv2(2, i) * j) % p
     return a1 * N2 % p
+print(solve_p2(14, 193))
+
+def gcd(num1, num2):
+    while num1 != 0:
+        num2 %= num1
+        num1, num2 = num2, num1
+    return num2
+
+
+
+# def powm(n, e, m):
+#     x = 1
+#     while e:
+#         if e & 1:
+#             x = (x * n) % m
+#         n = (n * n) % m
+#         e >>= 1
+#     return x
+
+
+def ferma(n, t):
+    for i in range(t):
+        a = random.randint(2, n-2)
+        if powm(a, n-1, n) != 1:
+            return "composite"
+    return "probably prime"
+
+
+def getbits(n):
+    res = 1
+    for i in range(n-2):
+        res <<= 1
+        res += random.randint(0, 1)
+    res <<= 1
+    res += 1
+    return res
+
+def getprime(n):
+    p = getbits(n)
+    while not miller_rabin(p, 100): 
+        p = getbits(n)
+    return p
+
+
 
 
 def gcd_extended(num1, num2):
@@ -145,7 +343,7 @@ def gcd_extended(num1, num2):
 def pairs_gcd(list):
     for i in range(len(list) + 1):
         for j in range(i + 1, len(list)):
-            if math.gcd(list[i], list[j]) != 1:
+            if gcd(list[i], list[j]) != 1:
                 return False
     return True
 
@@ -173,13 +371,19 @@ def crt(m, a):
         x += M // m[i] * a[i] * n % M
     return x % M
 
+def prod(m):
+    res = 1
+    for i in m:
+        res *= i
+    return res
+
 def crt_lagrange(m, a):
     if (len(m) != len(a)):
         print("Error len")
         return None
     if not (pairs_gcd(m)):
         return None
-    M = math.prod(m)
+    M = prod(m)
     x = 0
     for i in range(len(m)):
         n = pow(M // m[i], -1, m[i])
@@ -215,7 +419,7 @@ def crt_extended(m, a):
 
 m = [52, 51, 50, 49, 48, 47, 46, 45, 44, 43]
 a = [29, 3, 37, 27, 9, 8, 43, 42, 33, 10]
-print(crt(m, a))
+# print(crt(m, a))
 
 
 
@@ -227,14 +431,12 @@ def isqrt(n):
     y = (x + n // x) // 2
   return x
 
-def fermat(n, verbose=True):
+def fermat(n):
     a = isqrt(n) # int(ceil(n**0.5))
     b2 = a*a - n
     b = isqrt(n) # int(b2**0.5)
     count = 0
     while b*b != b2:
-        if verbose:
-            print('Trying: a=%s b2=%s b=%s' % (a, b2, b))
         a = a + 1
         b2 = a*a - n
         b = isqrt(b2) # int(b2**0.5)
@@ -250,16 +452,388 @@ def fermat(n, verbose=True):
     return p, q
 
 
+def comp_func(x, n):
+    return (powm(x, 2, n) + 1) % n
+
+def factorintp(n, k):
+    for _ in range(k):
+        c = random.randrange(0, n-1)
+        a, b = c, c
+        while(1):
+            a, b = comp_func(a, n), comp_func(comp_func(b, n), n)
+            d = gcd(a - b, n)
+            if d > 1 and d < n:
+                return d
+            elif d == n:
+                break
+
+def gen_sieve_base(n):
+    base = []
+    for i in sieve_base:
+        if i*i > n:
+            return base
+        elif i * i == n:
+            # print(f"found n = {i}^2")
+            base.append(i)
+            return base
+        elif random.randint(-n, n) % 2 == 0:
+            base.append(i)
+    return base
+
+def factorintp_1(n, k):
+    for _ in range(k):
+        base = gen_sieve_base(n)
+        a = random.randrange(2, n-2)
+        d = gcd(a, n)
+        if d >= 2:
+            return d
+        for i in base:
+            l = int(math.log(n)/math.log(i))
+            a = powm(a, powv2(i,l), n)
+        d = gcd(a-1, n)
+        if d == 1 or d == n:
+            continue
+        else: 
+            return d
+
+def factorint(n, k = 1000):
+    result = {}
+    e = 0
+    while n&1 == 0:
+        n >>= 1
+        e += 1
+    if e != 0:
+        result[2] = e
+    while not (miller_rabin(n, 100)):
+        try:
+            d = factorintp_1(n, k)
+        except:
+            d = factorintp(n, k)
+        e = 0
+        if d != None:
+            while n % d == 0:
+                n //= d
+                e +=1
+            div = factorint(d, k)
+            for i in div:
+                div[i] *= e
+            result.update(div)
+    if n!= 1:
+        result[n] = 1 
+    return dict(sorted(result.items()))
 
 
+def get_divisors(prime_factors):
+    divisors = [1]
+    for prime, exponent in prime_factors.items():
+        new_divisors = []
+        for i in range(1, exponent + 1):
+            for d in divisors:
+                div = pow(prime, i) * d
+                if div not in divisors:
+                    new_divisors.append(div)
+        divisors.extend(new_divisors)
+    divisors.sort()
+    return divisors
+
+def branching_function(a, b, c, p):
+    if c < (p-1) // 2:
+        return (a*c) % p
+    else:
+        return (b*c) % p
+
+def log(c, p, r, uv):
+    if c < (p-1) // 2:
+        uv['u'] = (uv['u'] + 1) % r
+    else:
+        uv['v'] = (uv['v'] + 1) % r
+    return uv
+
+def discrete_log(a, b, p, k = 10000):
+    u, v = 2, 2
+    d = get_divisors(factorint(p-1))
+    order = 0
+    for o in d:
+        if powm(a, o, p) == 1:
+            order = o
+            break
+    c = (powm(a, u, p) * powm(b, v, p)) % p 
+    d = c
+    uvc, uvd = {'u': 2, 'v': 2}, {'u': 2, 'v': 2}
+    print(0, c, d, uvc, uvd, order)
+    for _ in range(1, p//2):
+        
+        c, uvc = branching_function(a, b, c, p), log(c, p, order, uvc)
+        d , uvd = branching_function(a, b, d, p), log(d, p, order, uvd)
+        d , uvd = branching_function(a, b, d, p), log(d, p, order, uvd)
+        print(_, c, d, uvc, uvd, order)
+        if (c % p) == (d % p):
+            
+            x = solve_m1(uvd['v']-uvc['v'], uvc['u']-uvd['u'], order)
+            return x[0]
+
+print(discrete_log(3, 2, 11))
+# print(discrete_log(10, 64, 107))
+def gen_filename():
+    random_uuid = uuid.uuid4()
+    return str(random_uuid)
+
+def genkeyRSA(bits):
+    p, q = getprime(bits), getprime(bits)
+    n, phi = p*q, (p-1) * (q-1)
+    e = random.randint(11, powv2(2, 16))
+    while gcd(phi, e) != 1:
+        e = random.randint(11, powv2(2, 16))
+    d = powm(e, -1, phi)
+    filename = gen_filename()
+    
+    public_key = {
+        'e': e,
+        'n': n
+    }
+    private_key = {
+        'd': d,
+        'p': p,
+        'q': q,
+        'exponent1': d % (p - 1),
+        'exponent2': d % (q - 1),
+        'cpefficient': powm(q, -1, p)
+    }
+
+    with open(filename + '.pub', 'w') as f:
+        json.dump(public_key, f, indent=4)
+    with open(filename, 'w') as f:
+        json.dump(private_key, f, indent=4)
+    print(f"Key gen in {filename}")
+
+
+def btl(s):
+    return int.from_bytes(s, 'big')
+
+
+def ltb(n):
+    s = n.to_bytes((n.bit_length() + 7) // 8, 'big')
+    return s
+
+
+def padRSA(text, size):
+    new_text = b''
+    blocks = len(text)//(size-1)
+    for i in range(blocks):
+        new_text += (text[i*(size-1):(i+1)*(size-1)])
+        new_text += b'\x01'
+    new_text += text[blocks*(size-1):]
+    pad = (size - len(new_text) % size) % size
+    new_text += (pad.to_bytes(1, 'big') * pad)
+    return new_text
+
+
+def unpadRSA(text, size):
+    unpad = text[-1]
+    if unpad != 0:
+        text = text[:-unpad]
+    else:
+        text = tex
+    unpad_text = b''
+    blocks = len(text)//(size)
+    for i in range(0, blocks):
+        unpad_text += text[size*i:(i+1)*(size)-1] 
+    unpad_text += text[blocks * size:]
+    return unpad_text
+
+
+def RSA(path_to_file, path_to_keys, action): 
+    if action == "encrypt":
+        mime_type, _ = mimetypes.guess_type(path_to_file)
+        cipher = ''
+        with open(path_to_keys + ".pub", 'r') as f:
+            public_key = json.load(f)
+            e = public_key['e']
+            n = public_key['n']
+
+        with open(path_to_file, 'rb') as f:
+            text = f.read()
+
+        text = padRSA(text, 255)
+
+        for i in range(len(text)//255):
+            cipher_part = hex(powm(btl(text[i*255:(i+1)*255]), e, n))[2:]
+            if len(cipher_part) < 512:
+                cipher_part = (512 - len(cipher_part))*'0' + cipher_part
+            cipher += cipher_part
+
+        data = {
+        "Version": 0,
+        "EncryptedContentInfo": {
+            "ContentType": mime_type,
+            "ContentEncryptionAlgorithmIdentifier": "rsaEncryption",
+            "encryptedContent": cipher, 
+            "OPTIONAL": {} 
+            }
+        }
+        with open(f'{path_to_file}_encrypted', 'w') as f:
+            json.dump(data, f, indent=4)
+        return "Encrypted"
+    elif action == "decrypt":
+        text = b''
+        with open(path_to_keys, 'r') as f:
+            private_key = json.load(f)
+            d = private_key['d']
+            p = private_key['p']
+            q = private_key['q']
+
+        with open(path_to_file, 'r') as f:
+            data = json.load(f)
+        
+        cipher = data['EncryptedContentInfo']['encryptedContent']
+
+        for i in range(0, len(cipher), 512):
+            cipher_part = cipher[i:i+512]
+            part_text = ltb(powm(int("0x" + cipher_part, 16), d, p*q))
+            if len(part_text) < 255:
+               part_text = (0).to_bytes(1, 'big') * (255 - len(part_text)) + part_text
+            text += part_text
+      
+        text = unpadRSA(text, 255)
+
+        with open(f'{path_to_file}_decrypted', 'wb') as f:
+            f.write(text)
+        return "Decrypted"
+    else:
+        print("Unknown operation")
+        return None
+
+# RSA('Бумажный_Федя.pdf','1733324568938552', 'encrypt')
+# RSA('Бумажный_Федя.pdf_encrypted','1733324568938552', 'decrypt')
+
+
+def key_genRabin(bits):
+    p, q = getprime(bits), getprime(bits)
+    while p % 4 != 3:
+        p = getprime(bits)
+    while q % 4 != 3:
+        q = getprime(bits)
+    filename = gen_filename()
+    
+    public_key = {
+        'n': p*q
+    }
+    private_key = {
+        'p': p,
+        'q': q
+    }
+    with open(filename + '.pub', 'w') as f:
+        json.dump(public_key, f, indent=4)
+    with open(filename, 'w') as f:
+        json.dump(private_key, f, indent=4)
+    print(f"Key gen in {filename}")
+
+def Rabin(action, path_to_keys = "None"):
+    if action == "encrypt":
+        with open(path_to_keys + ".pub", 'r') as f:
+            public_key = json.load(f)
+            n = public_key['n']
+        text = btl(input("Введите текст: ").encode())
+        return powm(text, 2, n)
+
+    elif action == "decrypt":
+        with open(path_to_keys, 'r') as f:
+            private_key = json.load(f)
+            p = private_key['p']
+            q = private_key['q']
+            n = p*q
+        
+        cipher = int(input("Введите шифр(числом): "))
+        _, y_p, y_q = gcd_extendedv2(p, q)
+        m_p, m_q = powm(cipher, (p+1)//4, p), powm(cipher, (q+1)//4, q)
+        m1, m3 = (y_p * m_q * p + y_q * m_p * q ) % n, (y_p * m_q * p - y_q * m_p * q ) % n 
+        m2, m4 = n - m1, n - m3
+        return [ltb(m1), ltb(m2), ltb(m3), ltb(m4)]
+    
+    elif action == "gen_key":
+        bits = int(input("Введите размерность ключа: "))
+        key_genRabin(bits)
+        return
+# Rabin("gen_key")
+# print(Rabin("encrypt", "84e10244-68aa-4422-a1ff-d7d5d8f9631a"))
+# print(Rabin("decrypt", "84e10244-68aa-4422-a1ff-d7d5d8f9631a"))
+
+
+def get_primitive(p):
+    order = 0
+    d = get_divisors(factorint(p-1))
+    while order != p-1:
+        alpha = random.randint(2, p-1)
+        for o in d:
+            if powm(alpha, o, p) == 1:
+                order = o
+                if order != p - 1:
+                    break
+    return alpha
+
+
+def key_genEl_Gamal(bits):
+    p = getprime(bits)
+    a = random.randint(1, p-1)
+    d = get_divisors(factorint(p-1))
+    alpha = get_primitive(p)
+    betta = powm(alpha, a, p)
+
+    filename = gen_filename()
+    
+    public_key = {
+        'p': p,
+        'alpha': alpha,
+        'betta': betta
+    }
+    private_key = {
+        'a': a
+    }
+    with open(filename + '.pub', 'w') as f:
+        json.dump(public_key, f, indent=4)
+    with open(filename, 'w') as f:
+        json.dump(private_key, f, indent=4)
+    print(f"Key gen in {filename}")
+
+
+def El_Gamal(action, path_to_keys = "None"):
+    if action == "encrypt":
+        with open(path_to_keys + ".pub", 'r') as f:
+            public_key = json.load(f)
+            p = public_key['p']
+            alpha = public_key['alpha']
+            betta = public_key['betta']
+        text = btl(input("Введите текст: ").encode())
+
+        r = random.randint(0, p-2)
+        c1, c2 = powm(alpha, r, p), (text*powm(betta, r, p)) % p
+        return (c1, c2)
+
+    elif action == "decrypt":
+        with open(path_to_keys + ".pub", 'r') as f:
+            public_key = json.load(f)
+            p = public_key['p']
+        with open(path_to_keys, 'r') as f:
+            private_key = json.load(f)
+            a = private_key['a']
+        
+        c1, c2 = map(int, input().split(','))
+        m = (c2 * powm(powm(c1, a, p), -1, p)) % p
+        return ltb(m)
+    
+    elif action == "gen_key":
+        bits = int(input("Введите число: "))
+        key_genEl_Gamal(bits)
+
+# El_Gamal("gen_key")
+# print(El_Gamal("encrypt", "1c1c0b8f-dc0b-4904-b414-2b4b1dd4ad29"))
+# print(El_Gamal("decrypt", "1c1c0b8f-dc0b-4904-b414-2b4b1dd4ad29"))
 
 # print(long_to_bytes(pow(c, d, n)))
 # while not b"RDGCTF{" in long_to_bytes(pow(c, d, n)):
 #     k += 1
 #     d = attack(e, n, k)
 # #
-
-
 
 # a = 14952342227559366099719941386076058435614351428884763924901190367792414784074564892057879585025309595847684554219482517762987599677975603066559012828078320808309786516568154754232094595153442894381728000304148448831889330924452896802717849965565181028078944699888327313897078645437169518932593791065010120978089546873060274780772501105053374706153387946424375723099098019811069139117252764840752194408759130169846223491391000281483083344974652793531663680387249173672554095462230843857631798396392752936549252240621054303150335033172333938777005594392856740986308347936967577051680995552060936276503732282166098037992
 # b = 5616684565046349371552297148121358673036243455915112457566766393105726751045068745823215689908895952497298287701722048346611888447895498526554170229019964654683171266437275101129316950453597861163778357340195404469482834612302204632306352174417078526923055161433947392883747363580895849985110378031423292659600271987886978409954669492265817466976879348552206777708533803762545052095100889962058582705822448953441316359838685184433066083199471892206922243471083349279019709579436074984432994932651932979070964873376199260537871479115699199989227614913216323385050643746149703222828737577832194195815970690189830696101
