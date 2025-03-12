@@ -572,7 +572,7 @@ def discrete_log(a, b, p, k = 10000):
             x = solve_m1(uvd['v']-uvc['v'], uvc['u']-uvd['u'], order)
             return x[0]
 
-print(discrete_log(3, 2, 11))
+# print(discrete_log(3, 2, 11))
 # print(discrete_log(10, 64, 107))
 def gen_filename():
     random_uuid = uuid.uuid4()
@@ -824,6 +824,23 @@ def El_Gamal(action, path_to_keys = "None"):
     elif action == "gen_key":
         bits = int(input("Введите число: "))
         key_genEl_Gamal(bits)
+
+
+def b64_encode(string):
+    alf = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+    if not isinstance(string, bytes):
+        string = string.encode('utf8')
+    result = '=' * (3 - len(string)%3)
+    string = btl(string)
+    if '=' in result:
+        string <<= (result.count('=') * 2)
+    while string > 0:
+        result = alf[string & 0x3f] + result
+        string >>= 6
+    return result
+print(b64_encode(b'gpfdjkgnskl'))
+
+
 
 # El_Gamal("gen_key")
 # print(El_Gamal("encrypt", "1c1c0b8f-dc0b-4904-b414-2b4b1dd4ad29"))
