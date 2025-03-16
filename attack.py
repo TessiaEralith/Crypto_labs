@@ -838,9 +838,70 @@ def b64_encode(string):
         result = alf[string & 0x3f] + result
         string >>= 6
     return result
-print(b64_encode(b'gpfdjkgnskl'))
 
 
+def b64_decode(string):
+    alf = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+    result = 0
+    end_string_index = string.count('=')
+    string = string[:-end_string_index]
+    for i in string:
+        result <<= 6
+        result |= alf.index(i)
+    result >>= (2 * end_string_index)
+    return ltb(result)
+
+# for i in range(1000):
+#     s = getprime(100)
+#     b64 = b64_encode(ltb(s))
+#     decoded = b64_decode(b64)
+#     if ltb(s) != decoded:
+#         print(s)
+#         break
+
+def b32_pad(string):
+    dic_str = {1:'======', 2:'====', 3:'===', 4:'=', 0:''}
+    dic_bits = {1:2, 2:4, 3:1, 4:3, 0:0}
+    return dic_str[len(string) % 5], dic_bits[len(string) % 5]
+
+
+def b32_unpad(string):
+    dic_bits = {6:2, 4:4, 3:1, 1:3, 0:0}
+    return  dic_bits[string.count('=')]
+
+def b32_encode(string):
+    alf = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
+    if not isinstance(string, bytes):
+        string = string.encode('utf8')
+    result, bits_padding_len = b32_pad(string)
+    string = btl(string)
+    if '=' in result:
+        string <<= bits_padding_len
+    while string > 0:
+        result = alf[string & 0x1f] + result
+        string >>= 5
+    return result
+
+
+def b32_decode(string):
+    alf = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
+    result = 0
+    bits_unpad_len = b32_unpad(string)
+    end_string_index = string.count('=')
+    string = string[:-end_string_index]
+    for i in string:
+        result <<= 5
+        result |= alf.index(i)
+    result >>= bits_unpad_len
+    return ltb(result)
+
+for i in range(1000):
+    s = getprime(25)
+    b32 = b32_encode(ltb(s))
+    decoded = b32_decode(b32)
+    if ltb(s) != decoded:
+        print(s)
+        break
 
 # El_Gamal("gen_key")
 # print(El_Gamal("encrypt", "1c1c0b8f-dc0b-4904-b414-2b4b1dd4ad29"))
