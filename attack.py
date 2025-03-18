@@ -573,6 +573,10 @@ def discrete_log(a, b, p, k = 10000):
             return x[0]
 
 # print(discrete_log(3, 2, 11))
+
+
+
+# print(discrete_log(3, 2, 11))
 # print(discrete_log(10, 64, 107))
 def gen_filename():
     random_uuid = uuid.uuid4()
@@ -633,7 +637,7 @@ def unpadRSA(text, size):
     if unpad != 0:
         text = text[:-unpad]
     else:
-        text = tex
+        text = text
     unpad_text = b''
     blocks = len(text)//(size)
     for i in range(0, blocks):
@@ -830,7 +834,7 @@ def b64_encode(string):
     alf = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
     if not isinstance(string, bytes):
         string = string.encode('utf8')
-    result = '=' * (3 - len(string)%3)
+    result = '=' * ((3 - len(string)%3) % 3)
     string = btl(string)
     if '=' in result:
         string <<= (result.count('=') * 2)
@@ -843,12 +847,19 @@ def b64_encode(string):
 def b64_decode(string):
     alf = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
     result = 0
-    end_string_index = string.count('=')
-    string = string[:-end_string_index]
-    for i in string:
-        result <<= 6
-        result |= alf.index(i)
-    result >>= (2 * end_string_index)
+    if len(string) % 4 != 0:
+        string += (len(string) % 4) * '='
+    if string.count('=') !=0:
+        end_string_index = string.count('=')
+        string = string[:-end_string_index]
+        for i in string:
+            result <<= 6
+            result |= alf.index(i)
+        result >>= (2 * end_string_index)
+    else:
+        for i in string:
+            result <<= 6
+            result |= alf.index(i)
     return ltb(result)
 
 # for i in range(1000):
