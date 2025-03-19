@@ -616,6 +616,8 @@ def btl(s):
 
 
 def ltb(n):
+    if n ==0:
+        return b'\x00'
     s = n.to_bytes((n.bit_length() + 7) // 8, 'big')
     return s
 
