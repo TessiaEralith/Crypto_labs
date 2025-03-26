@@ -134,6 +134,7 @@ def unpad(M):
 
 
 def Streebog(M, bits):
+    M = M[::-1]
     if bits == 256:
         IV = 0x1010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101
     elif bits == 512:
@@ -157,15 +158,21 @@ def Streebog(M, bits):
     h = g(0, h, N.to_bytes(64, 'big'))
     # print(hex(h))
     h = g(0, h, (sigma).to_bytes(64, 'big'))
-    h = hex(h >> (512- bits))[2:]
+    h = h >> (512- bits)
+    hash_streebog =h.to_bytes(bits//8, "little") # хэш получается задом наперёд, поэтому тут его переворачиваем
+    h = int.from_bytes(hash_streebog, "big")
+    h = hex(h)[2:]
     print(len(h))
     # return h
     return '0' * (bits//4 - len(h)) + h
+
+
+
 m = 0xfbe2e5f0eee3c820fbeafaebef20fffbf0e1e0f0f520e0ed20e8ece0ebe5f0f2f120fff0eeec20f120faf2fee5e2202ce8f6f3ede220e8e6eee1e8f0f2d1202ce8f0f2e5e220e5d1
 m = ltb(m)
 m = b'210987654321098765432109876543210987654321098765432109876543210'
-print(Streebog(m, 256))
-print(Streebog(b'hello world', 512))
+# print(Streebog(m, 512))
+# print(Streebog(b'hello world', 512))
 
 
 # print(unpad(0x100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000012))
