@@ -833,7 +833,7 @@ def El_Gamal(action, path_to_keys = "None"):
 
 
 def b64_encode(string):
-    alf = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+    alf = "l1xsvS7FWAynjfLPi2uJ86OZckepmHaIXrRVg0hbU3oEN4qY9QDdtKCTBzw5MG+/"
     if not isinstance(string, bytes):
         string = string.encode('utf8')
     result = '=' * ((3 - len(string)%3) % 3)
@@ -915,7 +915,49 @@ for i in range(1000):
     if ltb(s) != decoded:
         print(s)
         break
+# text= b'012345678901234567890123456789012345678901234567890123456789012'
+# print(b64_encode(text))
+# print((0x6413fb320d40).bit_length())
+# key = [111, 215, 126, 212, 241, 152, 14, 206, 247, 201, 219, 209, 152, 187, 168, 16, 104, 213, 145, 144, 80, 221, 106, 246, 65, 22, 109, 117, 102, 93, 224, 145, 247, 35, 44, 209, 191, 173, 221, 34, 85, 20, 212, 150, 0, 223, 192, 218, 182, 140, 152, 210, 148, 9, 164, 2, 107, 129, 239, 243, 242, 223, 46, 167]
+# k = b''
+# for byte in key:
+#     k+= ltb(0x36 ^ byte)
+# print(hex(btl(k+text)))
+# text=0x51313e68f0dfcf9bc222574b3d410b3e843e7fad8d09ce1908cabc7eb18c760457699301e414338a57c0f6511bf32673cc5fde9237d04b02614cc389e083e84c
+# inner = [81, 49, 62, 104, 240, 223, 207, 155, 194, 34, 87, 75, 61, 65, 11, 62, 132, 62, 127, 173, 141, 9, 206, 25, 8, 202, 188, 126, 177, 140, 118, 4, 87, 105, 147, 1, 228, 20, 51, 138, 87, 192, 246, 81, 27, 243, 38, 115, 204, 95, 222, 146, 55, 208, 75, 2, 97, 76, 195, 137, 224, 131, 232, 76]
+# # print(ltb(8))
+# k = b''
+# for byte in inner:
+#     k+= ltb(byte)
+# print(hex(btl(k)))
+# k = b''
+# for byte in key:
+#     k+= ltb(byte^0x5c)
+# print(k+ltb(text))
+# outer = [197, 180, 193, 26, 251, 107, 208, 232, 159, 95, 46, 20, 143, 20, 10, 108, 220, 134, 206, 76, 171, 111, 174, 102, 174, 21, 100, 33, 22, 252, 221, 143, 55, 95, 233, 63, 187, 54, 137, 50, 9, 28, 221, 208, 200, 151, 131, 53, 61, 31, 192, 106, 109, 93, 242, 138, 61, 105, 29, 62, 99, 69, 41, 142]
+# res = b''
+# for i in outer:
+#     res += ltb(i)
+# # print(hex(btl(res)))
+# o = [51, 139, 34, 136, 173, 196, 82, 146, 171, 149, 135, 141, 196, 231, 244, 76, 52, 137, 205, 204, 12, 129, 54, 170, 29, 74, 49, 41, 58, 1, 188, 205, 171, 127, 112, 141, 227, 241, 129, 126, 9, 72, 136, 202, 92, 131, 156, 134, 234, 208, 196, 142, 200, 85, 248, 94, 55, 221, 179, 175, 174, 131, 114, 251]
+# ihash = [81, 49, 62, 104, 240, 223, 207, 155, 194, 34, 87, 75, 61, 65, 11, 62, 132, 62, 127, 173, 141, 9, 206, 25, 8, 202, 188, 126, 177, 140, 118, 4, 87, 105, 147, 1, 228, 20, 51, 138, 87, 192, 246, 81, 27, 243, 38, 115, 204, 95, 222, 146, 55, 208, 75, 2, 97, 76, 195, 137, 224, 131, 232, 76]
+# k = b''
+# for byte in o:
+#     k+= ltb(byte)
+# for byte in ihash:
+#     k+= ltb(byte)
+# print(k)
+# with open("C:/Users/Tessia/Desktop/encrypt.py.enc", 'rb') as f:
+#     cipher = f.read()
+# key = ltb(0x4b4559)
+# text = b''
+# for i in range(len(cipher)):
+#     text += ltb(cipher[i] ^ key[i%3] + 32)
+# with open("cipher.py", 'wb') as f:
+#     cipher = f.write(text)
 
+    # print(f"Число: {num}, бинарно: {bin(num)}")
+    # print(f"Количество единиц: {bin(num).count('1')}\n")
 # El_Gamal("gen_key")
 # print(El_Gamal("encrypt", "1c1c0b8f-dc0b-4904-b414-2b4b1dd4ad29"))
 # print(El_Gamal("decrypt", "1c1c0b8f-dc0b-4904-b414-2b4b1dd4ad29"))

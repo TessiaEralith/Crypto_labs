@@ -1,11 +1,13 @@
-h = [[0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+from attack import btl, ltb
+
+H = [[0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
       0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19],
      [0x6a09e667f3bcc908, 0xbb67ae8584caa73b, 0x3c6ef372fe94f82b, 0xa54ff53a5f1d36f1,
       0x510e527fade682d1, 0x9b05688c2b3e6c1f, 0x1f83d9abfb41bd6b, 0x5be0cd19137e2179]
     ]
 
 K = [
-    [ 0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
+    [0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
     0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
     0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
     0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
@@ -52,26 +54,132 @@ def Maj(x, y, z):
     return (x & y) ^ (x & z) ^ (y & z)
 
 def rot(x, offset, mode):
+    # for _ in range(offset):
+    #     bit = x & 1
+    #     x = x >> 1 | bit << (mode // 8 - 1)
     end_bits = x & (1 << offset) - 1
     x >>= offset
-    end_bits <<= (mode // 8 - 1)
+    end_bits <<= (mode // 8 - offset)
     return end_bits + x
 
 
 def Σ0(x, mode):
-    return rot(x, 2, mode) ^ rot(x, 13, mode) ^ rot(x, 22, mode)
+    if mode == 256:
+        return rot(x, 2, mode) ^ rot(x, 13, mode) ^ rot(x, 22, mode)
+    return rot(x, 28, mode) ^ rot(x, 34, mode) ^ rot(x, 39, mode)
 
 
 def Σ1(x, mode):
-    return rot(x, 6, mode) ^ rot(x, 11, mode) ^ rot(x, 25, mode)
+    if mode == 256:
+        return rot(x, 6, mode) ^ rot(x, 11, mode) ^ rot(x, 25, mode)
+    return rot(x, 14, mode) ^ rot(x, 18, mode) ^ rot(x, 41, mode)
 
 
 def σ0(x, mode):
-    return rot(x, 7, mode) ^ rot(x, 18, mode) ^ (x >> 3)
+    if mode == 256:
+        return rot(x, 7, mode) ^ rot(x, 18, mode) ^ (x >> 3)
+    return rot(x, 1, mode) ^ rot(x, 8, mode) ^ (x >> 7)
 
 
-def σ0(x, mode):
-    return rot(x, 17, mode) ^ rot(x, 19, mode) ^ (x >> 10)
+def σ1(x, mode):
+    if mode == 256:
+        return rot(x, 17, mode) ^ rot(x, 19, mode) ^ (x >> 10)
+    return rot(x, 19, mode) ^ rot(x, 61, mode) ^ (x >> 6)
 
 
-# print(3>>>1)
+def pad256(m):
+    l = len(m)
+    k = 447 - (l << 3) & 0x1ff
+    return (btl(m) << 1 | 1) << k << 64 | l << 3
+
+
+def pad512(m):
+    l = len(m)
+    k = 895 - (l << 3) & 0x3ff
+    return (btl(m) << 1 | 1) << k << 128 | l << 3
+
+
+def SHA256(m):
+    H_i = []
+    for i in range(8):
+        H_i.append(H[0][i])
+    if len(m) % 64 != 0:
+        m = ltb(pad256(m))
+    for i in range(len(m) // 64):
+        a, b, c, d, e, f, g, h = H_i[0], H_i[1], H_i[2], H_i[3], H_i[4], H_i[5], H_i[6], H_i[7]
+        W = []
+        for t in range(64):
+            if t < 16:
+                w_t = btl(m[64*i + 4*t : 64*i + 4*(t+1)])
+            else:
+                w_t = σ1(W[t-2], 256) + W[t-7] + σ0(W[t-15], 256) + W[t-16] & 0xffffffff
+            W.append(w_t)
+
+            T_1 = h + Σ1(e, 256) + Ch(e, f, g, 256) + K[0][t] + w_t & 0xffffffff
+            T_2 = Σ0(a, 256) + Maj(a, b, c) & 0xffffffff
+            h, g, f = g, f, e
+            e = d + T_1 & 0xffffffff
+            d, c, b = c, b, a
+            a = T_1 + T_2 & 0xffffffff
+
+        H_i[0] = a + H_i[0] & 0xffffffff
+        H_i[1] = b + H_i[1] & 0xffffffff
+        H_i[2] = c + H_i[2] & 0xffffffff
+        H_i[3] = d + H_i[3] & 0xffffffff
+        H_i[4] = e + H_i[4] & 0xffffffff
+        H_i[5] = f + H_i[5] & 0xffffffff
+        H_i[6] = g + H_i[6] & 0xffffffff
+        H_i[7] = h + H_i[7] & 0xffffffff
+
+    result = H_i[0].to_bytes(4, 'big') + H_i[1].to_bytes(4, 'big') + H_i[2].to_bytes(4, 'big') + H_i[3].to_bytes(4, 'big') + \
+        H_i[4].to_bytes(4, 'big') + H_i[5].to_bytes(4, 'big') + H_i[6].to_bytes(4, 'big') + H_i[7].to_bytes(4, 'big')
+    result = hex(btl(result))[2:]
+    return '0' * (64 - len(result)) + result
+
+
+def SHA512(m):
+    H_i = []
+    for i in range(8):
+        H_i.append(H[1][i])
+    if len(m) % 64 != 0:
+        m = ltb(pad512(m))
+    for i in range(len(m) // 128):
+        W = []
+        a, b, c, d, e, f, g, h = H_i[0], H_i[1], H_i[2], H_i[3], H_i[4], H_i[5], H_i[6], H_i[7]
+        for t in range(80):
+            if t < 16:
+                w_t = btl(m[128*i + 8*t : 128*i + 8*(t+1)])
+            else:
+                w_t = σ1(W[t-2], 512) + W[t-7] + σ0(W[t-15], 512) + W[t-16] & 0xffffffffffffffff
+            W.append(w_t)
+
+            T_1 = h + Σ1(e, 512) + Ch(e, f, g, 512) + K[1][t] + w_t & 0xffffffffffffffff
+            T_2 = Σ0(a, 512) + Maj(a, b, c) & 0xffffffffffffffff
+            h, g, f = g, f, e
+            e = d + T_1 & 0xffffffffffffffff
+            d, c, b = c, b, a
+            a = T_1 + T_2 & 0xffffffffffffffff
+
+        H_i[0] = a + H_i[0] & 0xffffffffffffffff
+        H_i[1] = b + H_i[1] & 0xffffffffffffffff
+        H_i[2] = c + H_i[2] & 0xffffffffffffffff
+        H_i[3] = d + H_i[3] & 0xffffffffffffffff
+        H_i[4] = e + H_i[4] & 0xffffffffffffffff
+        H_i[5] = f + H_i[5] & 0xffffffffffffffff
+        H_i[6] = g + H_i[6] & 0xffffffffffffffff
+        H_i[7] = h + H_i[7] & 0xffffffffffffffff
+
+    result = H_i[0].to_bytes(8, 'big') + H_i[1].to_bytes(8, 'big') + H_i[2].to_bytes(8, 'big') + H_i[3].to_bytes(8, 'big') + \
+        H_i[4].to_bytes(8, 'big') + H_i[5].to_bytes(8, 'big') + H_i[6].to_bytes(8, 'big') + H_i[7].to_bytes(8, 'big')
+    result = hex(btl(result))[2:]
+    return '0' * (128 - len(result)) + result
+
+def SHA2(m, mode):
+    if mode == 256:
+        return SHA256(m)
+    elif mode == 512:
+        return SHA512(m)
+    return "Error! Wrong mode"
+
+# print(SHA256(b'hello world'))
+# print(SHA512(b'hello world'))
