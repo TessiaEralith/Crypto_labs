@@ -1,6 +1,6 @@
 import string
 
-from Crypto.Util.number import sieve_base, bytes_to_long as b2l, long_to_bytes as l2b 
+from Crypto.Util.number import sieve_base, bytes_to_long as b2l, long_to_bytes as l2b
 from sympy.ntheory import factorint
 import numpy as np
 import math
@@ -119,10 +119,10 @@ def solve_m1(a, b, m):
     for i in range(d):
         res =(u * b + m1 * i)%m
         x.append(res)
-        print(f"x ≡ {res} (mod {m})")
+        # print(f"x ≡ {res} (mod {m})")
     x.sort()
     return x
-print(solve_m1(-5, 6, 107))
+# print(solve_m1(-5, 6, 107))
 # print(solve_m1(1148, 2219, 2709))
 
 def powv2(n, e):
@@ -601,7 +601,7 @@ def genkeyRSA(bits):
         'q': q,
         'exponent1': d % (p - 1),
         'exponent2': d % (q - 1),
-        'cpefficient': powm(q, -1, p)
+        'coefficient': powm(q, -1, p)
     }
 
     with open(filename + '.pub', 'w') as f:
@@ -766,22 +766,26 @@ def Rabin(action, path_to_keys = "None"):
 
 
 def get_primitive(p):
-    order = 0
-    d = get_divisors(factorint(p-1))
-    while order != p-1:
-        alpha = random.randint(2, p-1)
-        for o in d:
-            if powm(alpha, o, p) == 1:
-                order = o
-                if order != p - 1:
-                    break
-    return alpha
+    while 1:
+        alpha = random.randint(2, p - 1)
+        if powm(alpha, 2, p) != 1 and powm(alpha, 2, p) != p-1 and powm(alpha, (p-1)//2, p) == 1:
+            return alpha
+    # order = 0
+    # d = get_divisors(factorint(p-1))
+    # while order != p-1:
+    #     alpha = random.randint(2, p-1)
+    #     for o in d:
+    #         if powm(alpha, o, p) == 1:
+    #             order = o
+    #             if order != p - 1:
+    #                 break
+
 
 
 def key_genEl_Gamal(bits):
     p = getprime(bits)
-    a = random.randint(1, p-1)
-    d = get_divisors(factorint(p-1))
+    a = random.randint(1, p-2)
+    # d = get_divisors(factorint(p-1))
     alpha = get_primitive(p)
     betta = powm(alpha, a, p)
 
@@ -790,7 +794,7 @@ def key_genEl_Gamal(bits):
     public_key = {
         'p': p,
         'alpha': alpha,
-        'betta': betta
+        'beta': betta
     }
     private_key = {
         'a': a
@@ -808,7 +812,7 @@ def El_Gamal(action, path_to_keys = "None"):
             public_key = json.load(f)
             p = public_key['p']
             alpha = public_key['alpha']
-            betta = public_key['betta']
+            betta = public_key['beta']
         text = btl(input("Введите текст: ").encode())
 
         r = random.randint(0, p-2)
@@ -830,7 +834,7 @@ def El_Gamal(action, path_to_keys = "None"):
     elif action == "gen_key":
         bits = int(input("Введите число: "))
         key_genEl_Gamal(bits)
-
+# print(El_Gamal("decrypt", "24f78966-b021-4e90-b6bf-7eb389d3058a"))
 
 def b64_encode(string):
     alf = "l1xsvS7FWAynjfLPi2uJ86OZckepmHaIXrRVg0hbU3oEN4qY9QDdtKCTBzw5MG+/"
@@ -915,15 +919,15 @@ for i in range(1000):
     if ltb(s) != decoded:
         print(s)
         break
-# text= b'012345678901234567890123456789012345678901234567890123456789012'
-# print(b64_encode(text))
+# pudded_text= b'012345678901234567890123456789012345678901234567890123456789012'
+# print(b64_encode(pudded_text))
 # print((0x6413fb320d40).bit_length())
 # key = [111, 215, 126, 212, 241, 152, 14, 206, 247, 201, 219, 209, 152, 187, 168, 16, 104, 213, 145, 144, 80, 221, 106, 246, 65, 22, 109, 117, 102, 93, 224, 145, 247, 35, 44, 209, 191, 173, 221, 34, 85, 20, 212, 150, 0, 223, 192, 218, 182, 140, 152, 210, 148, 9, 164, 2, 107, 129, 239, 243, 242, 223, 46, 167]
 # k = b''
 # for byte in key:
 #     k+= ltb(0x36 ^ byte)
-# print(hex(btl(k+text)))
-# text=0x51313e68f0dfcf9bc222574b3d410b3e843e7fad8d09ce1908cabc7eb18c760457699301e414338a57c0f6511bf32673cc5fde9237d04b02614cc389e083e84c
+# print(hex(btl(k+pudded_text)))
+# pudded_text=0x51313e68f0dfcf9bc222574b3d410b3e843e7fad8d09ce1908cabc7eb18c760457699301e414338a57c0f6511bf32673cc5fde9237d04b02614cc389e083e84c
 # inner = [81, 49, 62, 104, 240, 223, 207, 155, 194, 34, 87, 75, 61, 65, 11, 62, 132, 62, 127, 173, 141, 9, 206, 25, 8, 202, 188, 126, 177, 140, 118, 4, 87, 105, 147, 1, 228, 20, 51, 138, 87, 192, 246, 81, 27, 243, 38, 115, 204, 95, 222, 146, 55, 208, 75, 2, 97, 76, 195, 137, 224, 131, 232, 76]
 # # print(ltb(8))
 # k = b''
@@ -933,7 +937,7 @@ for i in range(1000):
 # k = b''
 # for byte in key:
 #     k+= ltb(byte^0x5c)
-# print(k+ltb(text))
+# print(k+ltb(pudded_text))
 # outer = [197, 180, 193, 26, 251, 107, 208, 232, 159, 95, 46, 20, 143, 20, 10, 108, 220, 134, 206, 76, 171, 111, 174, 102, 174, 21, 100, 33, 22, 252, 221, 143, 55, 95, 233, 63, 187, 54, 137, 50, 9, 28, 221, 208, 200, 151, 131, 53, 61, 31, 192, 106, 109, 93, 242, 138, 61, 105, 29, 62, 99, 69, 41, 142]
 # res = b''
 # for i in outer:
@@ -950,11 +954,11 @@ for i in range(1000):
 # with open("C:/Users/Tessia/Desktop/encrypt.py.enc", 'rb') as f:
 #     cipher = f.read()
 # key = ltb(0x4b4559)
-# text = b''
+# pudded_text = b''
 # for i in range(len(cipher)):
-#     text += ltb(cipher[i] ^ key[i%3] + 32)
+#     pudded_text += ltb(cipher[i] ^ key[i%3] + 32)
 # with open("cipher.py", 'wb') as f:
-#     cipher = f.write(text)
+#     cipher = f.write(pudded_text)
 
     # print(f"Число: {num}, бинарно: {bin(num)}")
     # print(f"Количество единиц: {bin(num).count('1')}\n")
