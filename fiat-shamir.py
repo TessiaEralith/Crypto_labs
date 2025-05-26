@@ -111,19 +111,19 @@ def sign(hash_type, path_to_file):
     return CAdES(mime_type, hash_type, "Fiat-Shamir", hex(btl(text)), (hash, hex(t)), b, hex(n))
 
 
-def check_Fiat_Shamir(message, b, hash, t, n, hash_type, utc_time):
+def check_Fiat_Shamir(message, b_cts, hash, t, n, hash_type, utc_time):
     text = ltb(int(message, 16)) + utc_time.encode('utf-8')
 
     m = int(hash_type[-3:])
     s = int(hash, 16)
     w = 1
-    b = key_recovery(b, n, m)
+    b = key_recovery(b_cts, n, m)
     for i in range(m):
         s_i = s & 1
         s >>= 1
         w = (w * powm(b[m - 1 - i], s_i, n)) % n
     w = (powm(t, 2, n) * w) % n
-
+    # b = b[:40]
     reference_hash = hash_funcs[hash_type[:-3]](text + ltb(w), int(hash_type[-3:]))
 
     return hash == reference_hash
@@ -144,21 +144,28 @@ def send_json_to_server(certificate, host='localhost', port=12345):
         data = json.loads(response)
         # print(data)
         b, n = data["SignerInfos"]["UnsignedAttributes"]["SET_OF_AttributeValue"]["certificate"]["b"], data["SignerInfos"]["UnsignedAttributes"]["SET_OF_AttributeValue"]["certificate"]["n"]
+        # print(len(b))
         n = int(n, 16)
 
         timestamp, signaturects = data['SignerInfos']["UnsignedAttributes"]["SET_OF_AttributeValue"]["timestamp"], data['SignerInfos']["UnsignedAttributes"]["SET_OF_AttributeValue"]["signature"]
         if check_Fiat_Shamir(m+signature[0]+signature[1][2:], b, signaturects[0], int(signaturects[1],16), n, hash_type, timestamp):
             data['SignerInfos']["UnsignedAttributes"]["OBJECT_IDENTIFIER"] = timestamp
+            data["SignerInfos"]["UnsignedAttributes"]["SET_OF_AttributeValue"]["certificate"]["b"] = data["SignerInfos"]["UnsignedAttributes"]["SET_OF_AttributeValue"]["certificate"]["b"][:40]
+        # print(len(data["SignerInfos"]["UnsignedAttributes"]["SET_OF_AttributeValue"]["certificate"]["b"]))
         return data
 
 
-# print()
-certificates = sign("SHA256", "cipher.txt")
-#
-with open('certificate.txt', 'w') as out:
-#     json_data = json.load(out)
 
-    json.dump(certificates, out, indent=4)
-# certificate = sign("SHA256", "cipher.txt")
-print(send_json_to_server(certificates))
+# certificates = sign("SHA256", "cipher.txt")
+# #
+# with open('certificate.txt', 'w') as out:
+# #     json_data = json.load(out)
+#
+#     json.dump(certificates, out, indent=4)
+# # certificate = sign("SHA256", "cipher.txt")
+# print(send_json_to_server(certificates))
 # key_genFiat(256, 1024)
+q,c = getprime(512), getprime(512)
+while not miller_rabin(2*q*c+1, 100):
+    q, c = getprime(512), getprime(512)
+print(2*q*c+1)

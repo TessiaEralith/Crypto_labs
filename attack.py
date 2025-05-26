@@ -136,9 +136,9 @@ def powv2(n, e):
 
 def powm(n, e, m):
     x = 1
-    if e == -1:
+    if e < 0:
         x = solve_m1(n, 1, m)
-        return x[0]
+        return powm(x[0], -e, m)
     while e:
         if e & 1:
             x = (x * n) % m
@@ -648,17 +648,18 @@ def unpadRSA(text, size):
     return unpad_text
 
 
-def RSA(path_to_file, path_to_keys, action): 
+def RSA(path_to_file, path_to_keys, action, optional=None, cipher=None, mime_type=None, text=None):
     if action == "encrypt":
-        mime_type, _ = mimetypes.guess_type(path_to_file)
+        if not(mime_type):
+            mime_type, _ = mimetypes.guess_type(path_to_file)
         cipher = ''
         with open(path_to_keys + ".pub", 'r') as f:
             public_key = json.load(f)
             e = public_key['e']
             n = public_key['n']
-
-        with open(path_to_file, 'rb') as f:
-            text = f.read()
+        if not (mime_type):
+            with open(path_to_file, 'rb') as f:
+                text = f.read()
 
         text = padRSA(text, 255)
 
@@ -674,12 +675,13 @@ def RSA(path_to_file, path_to_keys, action):
             "ContentType": mime_type,
             "ContentEncryptionAlgorithmIdentifier": "rsaEncryption",
             "encryptedContent": cipher, 
-            "OPTIONAL": {} 
+            "OPTIONAL": optional
             }
         }
-        with open(f'{path_to_file}_encrypted', 'w') as f:
-            json.dump(data, f, indent=4)
-        return "Encrypted"
+        if path_to_file:
+            with open(f'{path_to_file}_encrypted', 'w') as f:
+                json.dump(data, f, indent=4)
+        return data
     elif action == "decrypt":
         text = b''
         with open(path_to_keys, 'r') as f:
@@ -688,10 +690,10 @@ def RSA(path_to_file, path_to_keys, action):
             p = private_key['p']
             q = private_key['q']
 
-        with open(path_to_file, 'r') as f:
-            data = json.load(f)
-        
-        cipher = data['EncryptedContentInfo']['encryptedContent']
+        if not(cipher):
+            with open(path_to_file, 'r') as f:
+                data = json.load(f)
+            cipher = data['EncryptedContentInfo']['encryptedContent']
 
         for i in range(0, len(cipher), 512):
             cipher_part = cipher[i:i+512]
@@ -701,10 +703,10 @@ def RSA(path_to_file, path_to_keys, action):
             text += part_text
       
         text = unpadRSA(text, 255)
-
-        with open(f'{path_to_file}_decrypted', 'wb') as f:
-            f.write(text)
-        return "Decrypted"
+        if path_to_file:
+            with open(f'{path_to_file}_decrypted', 'wb') as f:
+                f.write(text)
+        return text
     else:
         print("Unknown operation")
         return None
